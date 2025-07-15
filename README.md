@@ -81,6 +81,18 @@ A typical Stratum implementation consists of:
    * (see: https://docs.newrelic.com/docs/browser/browser-monitoring/getting-started/introduction-browser-monitoring/)
    */
   stratumService.publish(EventKey.LOADED);
+
+  /**
+   * You can also publish events with dynamic data that's only known at runtime.
+   * This data is type-safe and will be passed to your plugins for processing.
+   */
+  stratumService.publish(EventKey.LOADED, {
+    eventData: {
+      userId: 'user123',
+      timestamp: Date.now(),
+      sessionId: 'session456'
+    }
+  });
 ```
 
 ## Installation
@@ -189,6 +201,72 @@ const catalog: StratumCatalog<SimpleEvent> = {
 
     // Additional fields defined by SimpleEvent
     simpleValue: 12345
+  }
+}
+```
+
+### Type-safe Event Data
+
+Stratum supports type-safe dynamic data that can be provided at publish time. This allows you to define the shape of dynamic data in your catalog while maintaining full type safety.
+
+#### Defining Event Data Types
+
+You can define the expected shape of dynamic data using the `eventDataType` property in your catalog:
+
+```typescript
+import { CatalogEvent } from '@capitalone/stratum-observability';
+
+// Define an event that requires dynamic user data
+interface UserEvent extends CatalogEvent<'user-action', { userId: string; timestamp: number }> {
+  eventDataType: { userId: string; timestamp: number }; // for TypeScript typing only
+}
+
+const catalog = {
+  userLogin: {
+    eventType: 'user-action',
+    description: 'User login event',
+    id: 1
+  } as UserEvent
+};
+```
+
+#### Publishing with Type-Safe Data
+
+When you publish an event, TypeScript will enforce that the `eventData` matches the defined `eventDataType`:
+
+```typescript
+// ✅ This works - eventData matches the defined type
+stratumService.publish('userLogin', {
+  eventData: {
+    userId: 'user123',
+    timestamp: Date.now()
+  }
+});
+
+// ❌ This causes a TypeScript error - wrong shape
+stratumService.publish('userLogin', {
+  eventData: {
+    wrongField: 'value' // Type error!
+  }
+});
+```
+
+#### Accessing Event Data in Plugins
+
+Plugins can access the dynamic `eventData` from the options passed to their methods:
+
+```typescript
+export class MyPublisher extends BasePublisher {
+  getModelOutput(model: BaseEventModel, options?: Partial<EventOptions>) {
+    const eventData = options?.eventData;
+    
+    if (eventData) {
+      // eventData is typed according to your catalog definition
+      console.log('User ID:', eventData.userId);
+      console.log('Timestamp:', eventData.timestamp);
+    }
+    
+    return model.getData(options);
   }
 }
 ```

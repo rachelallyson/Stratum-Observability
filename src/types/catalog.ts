@@ -17,7 +17,7 @@ export type CatalogKey = number | string;
  * Base definition of objects within a stratum catalog. All catalog
  * items should extend this interface.
  */
-export interface CatalogEvent<EventType extends string = string> {
+export interface CatalogEvent<EventType extends string = string, EventDataType = never> {
   /**
    * Type of event this catalog item describes. The eventType determines the
    * contents used in publishing as well as the validation rules that
@@ -35,6 +35,13 @@ export interface CatalogEvent<EventType extends string = string> {
    * Unique identifier for the item within the catalog
    */
   id: EventId;
+
+  /**
+   * Type-safe event data definition. This defines the shape of the data
+   * that should be sent with this event. Used for TypeScript type inference
+   * and validation.
+   */
+  eventDataType?: EventDataType;
 }
 
 /**
@@ -214,7 +221,14 @@ export interface EventOptions {
  * Specifically, we are excluding the `data` EventOptions property since
  * this is dynamically generated.
  */
-export type UserDefinedEventOptions = Omit<EventOptions, 'data'>;
+export type UserDefinedEventOptions = Omit<EventOptions, 'data'> & {
+  /**
+   * Type-safe event data to be merged with the catalog item's eventData.
+   * This allows for dynamic data to be provided at publish time while
+   * maintaining type safety.
+   */
+  eventData?: unknown;
+};
 
 /**
  * Optional function that can be used to replace a dynamic placeholder

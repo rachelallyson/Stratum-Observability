@@ -2,6 +2,7 @@ import { BasePublisher } from './base';
 import type {
   AbTest,
   AbTestSchema,
+  CatalogEvent,
   CatalogKey,
   GenericPlugin,
   StratumServiceOptions,
@@ -32,7 +33,9 @@ import { Injector } from './utils/injector';
  * Different instances of the StratumService are independent from one another which is useful
  * for testing and implementation.
  */
-export class StratumService {
+export class StratumService<
+  CatalogType extends Record<string, CatalogEvent<string, unknown>> = Record<string, CatalogEvent<string, unknown>>
+> {
   /**
    * Collection of catalogs registered by the StratumService
    * instance.
@@ -166,6 +169,16 @@ export class StratumService {
    * @return {Promise<boolean>} - This promise will always resolve with a boolean representing
    *  the success of the publisher
    */
+  // Type-safe overload for eventData
+  async publish<K extends keyof CatalogType>(
+    key: K,
+    options: {
+      eventData: CatalogType[K] extends { eventDataType: infer D } ? D : never;
+    } & Partial<UserDefinedEventOptions>
+  ): Promise<boolean>;
+  // Old API for backward compatibility
+  async publish(key: CatalogKey, options?: Partial<UserDefinedEventOptions>): Promise<boolean>;
+  // Implementation
   async publish(key: CatalogKey, options?: Partial<UserDefinedEventOptions>): Promise<boolean> {
     const catalogId = this.defaultCatalog?.id ?? '';
     return this.publishFromCatalog(catalogId, key, options);
